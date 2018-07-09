@@ -196,7 +196,9 @@ module Apartment
       #                                   if false, use the default db name from the db
       def multi_tenantify(tenant, with_database = true)
         db_connection_config(tenant).tap do |config|
-          if with_database
+          if Apartment.with_multi_server_setup_and_schemas
+            multi_tenantify_with_tenant_db_and_schema_name(config, tenant)
+          elsif with_database
             multi_tenantify_with_tenant_db_name(config, tenant)
           end
         end
@@ -204,6 +206,11 @@ module Apartment
 
       def multi_tenantify_with_tenant_db_name(config, tenant)
         config[:database] = environmentify(tenant)
+      end
+
+      def multi_tenantify_with_tenant_db_and_schema_name(config, tenant)
+        puts 'multi tenantify'
+        config[:database] = config[:database]
       end
 
       #   Load a file or raise error if it doesn't exists
