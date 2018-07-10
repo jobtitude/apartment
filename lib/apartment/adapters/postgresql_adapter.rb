@@ -7,6 +7,7 @@ module Apartment
       adapter = Adapters::PostgresqlAdapter
       adapter = Adapters::PostgresqlSchemaAdapter if Apartment.use_schemas
       adapter = Adapters::PostgresqlSchemaFromSqlAdapter if Apartment.use_sql && Apartment.use_schemas
+      adapter = Adapters::PostgresqlDatabaseSchemaAdapter if Apartment.with_multi_server_setup_and_schemas
       adapter.new(config)
     end
   end
@@ -62,6 +63,83 @@ module Apartment
       #   Set schema search path to new schema
       #
       def connect_to_new(tenant = nil)
+        return reset if tenant.nil?
+        raise ActiveRecord::StatementInvalid.new("Could not find schema #{tenant}") unless Apartment.connection.schema_exists?(tenant.to_s)
+
+        @current = tenant.to_s
+        Apartment.connection.schema_search_path = full_search_path
+
+        # When the PostgreSQL version is < 9.3,
+        # there is a issue for prepared statement with changing search_path.
+        # https://www.postgresql.org/docs/9.3/static/sql-prepare.html
+        if postgresql_version < 90300
+          Apartment.connection.clear_cache!
+        end
+
+      rescue *rescuable_exceptions
+        raise TenantNotFound, "One of the following schema(s) is invalid: \"#{tenant}\" #{full_search_path}"
+      end
+
+    private
+
+      def create_tenant_command(conn, tenant)
+        conn.execute(%{CREATE SCHEMA "#{tenant}"})
+      end
+
+      #   Generate the final search path to set including persistent_schemas
+      #
+      def full_search_path
+        persistent_schemas.map(&:inspect).join(", ")
+      end
+
+      def persistent_schemas
+        [@current, Apartment.persistent_schemas].flatten
+      end
+
+      def postgresql_version
+        # ActiveRecord::ConnectionAdapters::PostgreSQLAdapter#postgresql_version is
+        # public from Rails 5.0.
+        Apartment.connection.send(:postgresql_version)
+      end
+    end
+
+    class PostgresqlDatabaseSchemaAdapter < AbstractAdapter
+
+      def initialize(config)
+        super
+
+        reset
+      end
+
+      def reset
+        super
+        @current = default_tenant
+        Apartment.connection.schema_search_path = full_search_path
+      end
+
+      def current
+        Apartment.connection.current_schema
+      end
+
+    protected
+
+      def process_excluded_model(excluded_model)
+        excluded_model.constantize.tap do |klass|
+          # Ensure that if a schema *was* set, we override
+          table_name = klass.table_name.split('.', 2).last
+
+          klass.table_name = "#{default_tenant}.#{table_name}"
+        end
+      end
+
+      def drop_command(conn, tenant)
+        conn.execute(%{DROP SCHEMA "#{tenant}" CASCADE})
+      end
+
+      #   Set schema search path to new schema
+      #
+      def connect_to_new(tenant = nil)
+        super
         return reset if tenant.nil?
         raise ActiveRecord::StatementInvalid.new("Could not find schema #{tenant}") unless Apartment.connection.schema_exists?(tenant.to_s)
 
