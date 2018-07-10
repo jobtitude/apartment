@@ -20,7 +20,6 @@ module Apartment
       def create(tenant)
         run_callbacks :create do
           create_tenant(tenant)
-
           switch(tenant) do
             import_database_schema
 
@@ -35,7 +34,11 @@ module Apartment
       #   Note alias_method here doesn't work with inheritence apparently ??
       #
       def current
-        Apartment.connection.current_database
+        if Apartment.with_multi_server_setup_and_schemas
+          Apartment.connection.current_schema
+        else
+          Apartment.connection.current_database
+        end
       end
 
       #   Return the original public tenant
@@ -209,7 +212,6 @@ module Apartment
       end
 
       def multi_tenantify_with_tenant_db_and_schema_name(config, tenant)
-        puts 'multi tenantify'
         config[:database] = config[:database]
       end
 
@@ -242,7 +244,11 @@ module Apartment
       end
 
      def with_neutral_connection(tenant, &block)
-        if Apartment.with_multi_server_setup
+        if Apartment.with_multi_server_setup_and_schemas
+          SeparateDbConnectionHandler.establish_connection(multi_tenantify(tenant, false))
+          yield(SeparateDbConnectionHandler.connection)
+          SeparateDbConnectionHandler.connection.close
+        elsif Apartment.with_multi_server_setup
           # neutral connection is necessary whenever you need to create/remove a database from a server.
           # example: when you use postgresql, you need to connect to the default postgresql database before you create your own.
           SeparateDbConnectionHandler.establish_connection(multi_tenantify(tenant, false))
