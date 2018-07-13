@@ -123,15 +123,6 @@ module Apartment
 
     protected
 
-      def process_excluded_model(excluded_model)
-        excluded_model.constantize.tap do |klass|
-          # Ensure that if a schema *was* set, we override
-          table_name = klass.table_name.split('.', 2).last
-
-          klass.table_name = "#{default_tenant}.#{table_name}"
-        end
-      end
-
       def drop_command(conn, tenant)
         conn.execute(%{DROP SCHEMA "#{tenant}" CASCADE})
       end
