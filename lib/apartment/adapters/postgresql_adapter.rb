@@ -4,7 +4,6 @@ module Apartment
   module Tenant
 
     def self.postgresql_adapter(config)
-      puts "Tenant.postgresql_adapter config #{config}"
       adapter = Adapters::PostgresqlAdapter
       adapter = Adapters::PostgresqlSchemaAdapter if Apartment.use_schemas
       adapter = Adapters::PostgresqlSchemaFromSqlAdapter if Apartment.use_sql && Apartment.use_schemas
@@ -64,6 +63,7 @@ module Apartment
       #   Set schema search path to new schema
       #
       def connect_to_new(tenant = nil)
+        puts "Apartment tenants: #{Apartment.tenant_names} ||| #{Apartment.tenants_with_config}"
         return reset if tenant.nil?
         raise ActiveRecord::StatementInvalid.new("Could not find schema #{tenant}") unless Apartment.connection.schema_exists?(tenant.to_s)
 
