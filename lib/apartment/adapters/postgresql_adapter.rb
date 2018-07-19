@@ -106,6 +106,7 @@ module Apartment
     class PostgresqlDatabaseSchemaAdapter < AbstractAdapter
 
       def initialize(config)
+        puts config
         super
 
         reset
