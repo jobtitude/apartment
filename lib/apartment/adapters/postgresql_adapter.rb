@@ -4,6 +4,7 @@ module Apartment
   module Tenant
 
     def self.postgresql_adapter(config)
+      puts "Tenant.postgresql_adapter config #{config}"
       adapter = Adapters::PostgresqlAdapter
       adapter = Adapters::PostgresqlSchemaAdapter if Apartment.use_schemas
       adapter = Adapters::PostgresqlSchemaFromSqlAdapter if Apartment.use_sql && Apartment.use_schemas
@@ -106,7 +107,7 @@ module Apartment
     class PostgresqlDatabaseSchemaAdapter < AbstractAdapter
 
       def initialize(config)
-        puts config
+        puts "PostgresqlDatabaseSchemaAdapter config #{config}"
         super
 
         reset
