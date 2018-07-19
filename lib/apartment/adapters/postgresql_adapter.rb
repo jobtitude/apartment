@@ -109,8 +109,9 @@ module Apartment
       def initialize(config)
         puts "PostgresqlDatabaseSchemaAdapter config #{config}"
         super
-
+        Apartment.connection_handler = ActiveRecord::ConnectionAdapters::ConnectionHandler.new
         reset
+        process_excluded_models
       end
 
       def reset
